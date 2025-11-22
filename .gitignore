@@ -75,3 +75,8 @@ Dockerfile_*
 
 /scripts/visualize*
 /scripts/dataset_info*
+
+# Data directories (downloaded datasets and model caches)
+/data/
+*.pth
+*.pt
