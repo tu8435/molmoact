@@ -193,14 +193,17 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key):
     image_pil = Image.fromarray(img)
     if trace is not None and len(trace) > 0:
         try:
-            # parse_trace returns a list of traces, take the first one
-            # load_image expects annotation_list format where each element is a trace (list of points)
-            first_trace = trace[0] if isinstance(trace, list) and len(trace) > 0 else trace
-            annotated = load_image(image_pil, [first_trace])
-            num_points = len(first_trace) if isinstance(first_trace, list) else 0
+            # load_image expects annotation_list format
+            # parse_trace returns [[[point1], [point2], ...]] - a list containing one trace
+            # Pass [trace] directly like the working version does
+            annotated = load_image(image_pil, [trace])
+            # Calculate points correctly - trace is [[[...]]], so trace[0] is [[...]] with points
+            num_points = len(trace[0]) if isinstance(trace, list) and len(trace) > 0 and isinstance(trace[0], list) else 0
             print(f"Successfully drew trajectory with {num_points} points")
         except Exception as e:
+            import traceback
             print(f"Failed to draw trajectory: {e}")
+            print(f"Traceback: {traceback.format_exc()}")
             annotated = np.array(img.copy())
     else:
         annotated = np.array(img.copy())
@@ -297,7 +300,10 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 try:
                     action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key)
                 except Exception as e:
-                    print(e)
+                    import traceback
+                    print(f"Error in step(): {e}")
+                    print(f"Full traceback:")
+                    traceback.print_exc()
                     action_matrix = np.zeros((1, 7), dtype=float)
                     action_matrix[:, -1] = last_gripper_state
                     annotated_image = img
@@ -324,13 +330,10 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                     try:
                         visualize_annotated = np.array(visualize.copy())
                         if traj is not None and len(traj) > 0:
-                            # traj is a list of traces from parse_trace(), extract the first trace
-                            first_traj = traj[0] if isinstance(traj, list) and len(traj) > 0 else traj
-                            if first_traj is not None and len(first_traj) >= 2:
-                                for i in range(len(first_traj) - 1):
-                                    p1 = tuple(map(int, first_traj[i]))
-                                    p2 = tuple(map(int, first_traj[i + 1]))
-                                    cv2.line(visualize_annotated, p1, p2, (0, 255, 255), 2, cv2.LINE_AA)
+                            for i in range(len(traj) - 1):
+                                p1 = tuple(map(int, traj[i]))
+                                p2 = tuple(map(int, traj[i + 1]))
+                                cv2.line(visualize_annotated, p1, p2, (0, 255, 255), 2, cv2.LINE_AA)
                     except Exception as e:
                         print(f"step() trajectory annotation failed, returning unannotated image: {e}")
                         visualize_annotated = np.array(visualize)
@@ -370,6 +373,8 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
             print(f"Success: {done}")
             print(f"# episodes completed so far: {total_episodes}")
             print(f"# successes: {total_successes} ({total_successes / total_episodes * 100:.1f}%)")
+        # Close the environment properly to avoid EGL cleanup errors
+        env.close()
 
     
 
@@ -385,29 +390,15 @@ def parse_args():
     return p.parse_args()
 
 def main():
-    # Redirect stdout and stderr to out.txt in the same directory
-    # Only redirect if not already redirected by shell (if stdout is a TTY, it's not redirected)
-    should_close_log = False
-    log_f = None
-    
-    if sys.stdout.isatty() and sys.stderr.isatty():
-        # Output is going to terminal, redirect to out.txt
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        log_file = os.path.join(script_dir, "out.txt")
-        
-        # Open the log file in write mode
-        log_f = open(log_file, 'w', buffering=1)  # Line buffered
-        
-        # Redirect both stdout and stderr
-        sys.stdout = log_f
-        sys.stderr = log_f
-        
-        print(f"Logging output to: {log_file}")
-        print("=" * 80)
-        should_close_log = True
-    else:
+    # Don't redirect output - let it go to terminal or shell redirection
+    # If output needs to be captured, use shell redirection: python script.py > output.txt 2>&1
+    if not sys.stdout.isatty() or not sys.stderr.isatty():
         # Output is already redirected by shell (e.g., &> file.txt), use it directly
         print(f"Logging output to: stdout/stderr (shell redirected)")
+        print("=" * 80)
+    else:
+        # Running interactively - output will be shown in terminal
+        print("Running interactively - output will be shown in terminal")
         print("=" * 80)
     
     args = parse_args()
@@ -417,9 +408,14 @@ def main():
 
     set_seed_everywhere(seed)
     
+    # Check if offline mode is enabled (for compute nodes without internet)
+    use_offline = (os.environ.get("HF_HUB_OFFLINE") == "1" or 
+                   os.environ.get("TRANSFORMERS_OFFLINE") == "1")
+    
     # For offline mode, try to find the model in the cache and use the direct path
     # This works better when compute nodes don't have internet access
-    if os.environ.get("HF_HUB_OFFLINE") == "1" or os.environ.get("TRANSFORMERS_OFFLINE") == "1":
+    hub_cache = None
+    if use_offline:
         cache_dir = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
         hub_cache = os.path.join(cache_dir, "hub")
         
@@ -438,29 +434,38 @@ def main():
                     if os.path.exists(os.path.join(snapshot_path, "config.json")):
                         print(f"Using cached model from: {snapshot_path}")
                         ckpt = snapshot_path  # Use direct path instead of hub ID
-    
-    # Set cache directory explicitly for offline mode
-    cache_dir = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
-    hub_cache = os.path.join(cache_dir, "hub")
-    
-    processor = AutoProcessor.from_pretrained(
-        ckpt,
-        trust_remote_code=True,
-        torch_dtype="bfloat16",
-        device_map="auto",
-        padding_side="left",
-        local_files_only=True,  # Use only cached files (compute nodes have no internet)
-        cache_dir=hub_cache,  # Explicitly set cache directory
-    )
 
-    model = AutoModelForImageTextToText.from_pretrained(
-        ckpt,
-        trust_remote_code=True,
-        torch_dtype="bfloat16",
-        device_map="auto",
-        local_files_only=True,  # Use only cached files (compute nodes have no internet)
-        cache_dir=hub_cache,  # Explicitly set cache directory
-    )
+    # Prepare processor kwargs - only set local_files_only and cache_dir if offline mode is enabled
+    processor_kwargs = {
+        "trust_remote_code": True,
+        "torch_dtype": "bfloat16",
+        "device_map": "auto",
+        "padding_side": "left",
+    }
+    if use_offline:
+        processor_kwargs["local_files_only"] = True
+        if hub_cache:
+            processor_kwargs["cache_dir"] = hub_cache
+
+    processor = AutoProcessor.from_pretrained(ckpt, **processor_kwargs)
+
+    # Prepare model kwargs - only set local_files_only and cache_dir if offline mode is enabled
+    model_kwargs = {
+        "trust_remote_code": True,
+        "torch_dtype": "bfloat16",
+        "device_map": "auto",
+    }
+    if use_offline:
+        model_kwargs["local_files_only"] = True
+        if hub_cache:
+            model_kwargs["cache_dir"] = hub_cache
+
+    model = AutoModelForImageTextToText.from_pretrained(ckpt, **model_kwargs)
+
+    # Reuse the processor's tokenizer instead of loading a new one
+    # This avoids the offline tokenizer loading issue on compute nodes
+    # The processor tokenizer is already loaded and works on both login and compute nodes
+    model._qwen_tokenizer = processor.tokenizer
 
     model_family = ckpt.replace("/", "-")
     num_trials_per_task = 5  # Changed from 50 to 5 for faster testing
@@ -478,10 +483,6 @@ def main():
             print(f"{'='*50}")
             args.task_id = task_id
             eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait)
-    
-    # Close the log file when done (only if we opened it)
-    if should_close_log and log_f is not None:
-        log_f.close()
 
 if __name__ == "__main__":
     main()

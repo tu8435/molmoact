@@ -80,3 +80,8 @@ Dockerfile_*
 /data/
 *.pth
 *.pt
+
+*.out
+*.log
+*.err
+*.mp4

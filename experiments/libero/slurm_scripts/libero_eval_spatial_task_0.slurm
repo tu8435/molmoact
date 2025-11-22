@@ -50,9 +50,17 @@ export HF_DATASETS_CACHE=$HF_HOME
 # Set offline mode to prevent attempting downloads (must be set before Python imports)
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
+export HF_DATASETS_OFFLINE=1
+
+# Disable tokenizer parallelism to avoid forking issues that can hang on compute nodes
+# The forking warning in oct30.txt suggests this might be causing hangs on compute nodes
+export TOKENIZERS_PARALLELISM=false
+
+# Enable unbuffered output for better logging
+export PYTHONUNBUFFERED=1
 
 # Run the evaluation script
 # Output will be redirected by the script itself to out.txt if running interactively,
 # or captured by SLURM's --output and --error flags
-python tersoo_run_libero_eval.py --task spatial --task_id 1 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812
+python tersoo_run_libero_eval_long.py --task spatial --task_id 0 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812
 

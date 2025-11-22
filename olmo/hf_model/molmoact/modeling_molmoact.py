@@ -1958,9 +1958,12 @@ class MolmoActForActionReasoning(MolmoActPreTrainedModel, GenerationMixin):
         # the gripper state should not be normalized
         mask[-1] = False
 
-        # Lazily load the tokenizer (shared across calls)
+        # Tokenizer should be set externally (e.g., from processor) before calling parse_action
         if self._qwen_tokenizer is None:
-            self._qwen_tokenizer = Qwen2Tokenizer.from_pretrained("Qwen/Qwen2-7B")
+            raise RuntimeError(
+                "Tokenizer not initialized. Please set model._qwen_tokenizer before calling parse_action. "
+                "Typically this is done by setting model._qwen_tokenizer = processor.tokenizer after loading the model."
+            )
 
         token_lists = extract_action_token_lists(text, only_len=action_dim)
         action_lists = []

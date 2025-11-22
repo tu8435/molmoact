@@ -93,7 +93,14 @@ def load_pil_image(image_path: str) -> PIL.Image.Image:
 
 def load_image(image_path, annotation_list):
     setup_pil()  # Call here so the setting is applied in multi-processing contexts
+    
+    # Debug: check what type image_path is
+    print(f"[DEBUG load_image] Received image_path type: {type(image_path)}, value: {image_path}")
+    if image_path is None:
+        raise ValueError(f"load_image received None as image_path")
+    
     if isinstance(image_path, PIL.Image.Image):
+        print(f"[DEBUG load_image] Image path is PIL.Image.Image, proceeding...")
         # Avoid annoying palette transparency warnings filling up the logs
         with warnings.catch_warnings(record=True) as w:
             image = image_path.convert("RGB")
@@ -150,7 +157,19 @@ def load_image(image_path, annotation_list):
                 except Exception as e:
                     print(f"Error processing annotation: {e}")
         
-        image = Image.fromarray(annotated_image)
+        # Ensure annotated_image is valid before converting back to PIL Image
+        if annotated_image is None:
+            raise ValueError("annotated_image is None after processing")
+        if not isinstance(annotated_image, np.ndarray):
+            raise TypeError(f"annotated_image is not a numpy array, got {type(annotated_image)}")
+            
+        try:
+            image = Image.fromarray(annotated_image)
+        except Exception as e:
+            print(f"Error in Image.fromarray: {e}")
+            print(f"annotated_image shape: {annotated_image.shape if annotated_image is not None else None}")
+            print(f"annotated_image dtype: {annotated_image.dtype if annotated_image is not None else None}")
+            raise
                 
         return np.array(image)
     elif isinstance(image_path, np.ndarray):
@@ -159,11 +178,19 @@ def load_image(image_path, annotation_list):
         assert image_path.dtype == np.uint8, "Image should have uint8 type"
         return image_path
     else:
+        print(f"[DEBUG load_image] Image path is NOT PIL.Image.Image or np.ndarray, it's {type(image_path)}")
         # This a bit of hack to handle cases where the image path was hard-coded
         # into the dataset to the weka path
-        if DATA_HOME != DEFAULT_IMAGE_PATH and DEFAULT_IMAGE_PATH in image_path:
+        if DATA_HOME is not None and DATA_HOME != DEFAULT_IMAGE_PATH and isinstance(image_path, str) and DEFAULT_IMAGE_PATH in image_path:
             image_path = image_path.replace(DEFAULT_IMAGE_PATH, DATA_HOME)
 
+        # Ensure image_path is not None and is a string
+        if image_path is None:
+            raise ValueError("image_path cannot be None in load_image")
+        if not isinstance(image_path, str):
+            raise TypeError(f"Expected image_path to be a string, got {type(image_path)}")
+
+        print(f"[DEBUG load_image] About to open image at path: {image_path}")
         # Ignore image loading warning
         with warnings.catch_warnings(record=True) as w:
             if image_path.startswith("gs://"):
