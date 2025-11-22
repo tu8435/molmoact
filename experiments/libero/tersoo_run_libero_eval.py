@@ -193,9 +193,12 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key):
     image_pil = Image.fromarray(img)
     if trace is not None and len(trace) > 0:
         try:
-            # load_image expects annotation_list format
-            annotated = load_image(image_pil, [trace])
-            print(f"Successfully drew trajectory with {len(trace)} points")
+            # parse_trace returns a list of traces, take the first one
+            # load_image expects annotation_list format where each element is a trace (list of points)
+            first_trace = trace[0] if isinstance(trace, list) and len(trace) > 0 else trace
+            annotated = load_image(image_pil, [first_trace])
+            num_points = len(first_trace) if isinstance(first_trace, list) else 0
+            print(f"Successfully drew trajectory with {num_points} points")
         except Exception as e:
             print(f"Failed to draw trajectory: {e}")
             annotated = np.array(img.copy())
@@ -290,6 +293,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 img = get_libero_image(obs, resize_size)
                 wrist_img = get_libero_wrist_image(obs, resize_size)
                 wait = False
+                traj = None  # Initialize traj to None in case step() fails
                 try:
                     action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key)
                 except Exception as e:
@@ -297,6 +301,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                     action_matrix = np.zeros((1, 7), dtype=float)
                     action_matrix[:, -1] = last_gripper_state
                     annotated_image = img
+                    traj = None  # Ensure traj is None when step() fails
                     wait = True
                     print(f"error: {e}")
 
@@ -318,11 +323,14 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
 
                     try:
                         visualize_annotated = np.array(visualize.copy())
-                        if traj is not None:
-                            for i in range(len(traj) - 1):
-                                p1 = tuple(map(int, traj[i]))
-                                p2 = tuple(map(int, traj[i + 1]))
-                                cv2.line(visualize_annotated, p1, p2, (0, 255, 255), 2, cv2.LINE_AA)
+                        if traj is not None and len(traj) > 0:
+                            # traj is a list of traces from parse_trace(), extract the first trace
+                            first_traj = traj[0] if isinstance(traj, list) and len(traj) > 0 else traj
+                            if first_traj is not None and len(first_traj) >= 2:
+                                for i in range(len(first_traj) - 1):
+                                    p1 = tuple(map(int, first_traj[i]))
+                                    p2 = tuple(map(int, first_traj[i + 1]))
+                                    cv2.line(visualize_annotated, p1, p2, (0, 255, 255), 2, cv2.LINE_AA)
                     except Exception as e:
                         print(f"step() trajectory annotation failed, returning unannotated image: {e}")
                         visualize_annotated = np.array(visualize)
@@ -377,21 +385,72 @@ def parse_args():
     return p.parse_args()
 
 def main():
+    # Redirect stdout and stderr to out.txt in the same directory
+    # Only redirect if not already redirected by shell (if stdout is a TTY, it's not redirected)
+    should_close_log = False
+    log_f = None
+    
+    if sys.stdout.isatty() and sys.stderr.isatty():
+        # Output is going to terminal, redirect to out.txt
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        log_file = os.path.join(script_dir, "out.txt")
+        
+        # Open the log file in write mode
+        log_f = open(log_file, 'w', buffering=1)  # Line buffered
+        
+        # Redirect both stdout and stderr
+        sys.stdout = log_f
+        sys.stderr = log_f
+        
+        print(f"Logging output to: {log_file}")
+        print("=" * 80)
+        should_close_log = True
+    else:
+        # Output is already redirected by shell (e.g., &> file.txt), use it directly
+        print(f"Logging output to: stdout/stderr (shell redirected)")
+        print("=" * 80)
+    
     args = parse_args()
     task_suite_name = f"libero_{args.task}"
-    ckpt       = args.checkpoint
+    ckpt = args.checkpoint
     seed = 7
 
     set_seed_everywhere(seed)
     
-
-
+    # For offline mode, try to find the model in the cache and use the direct path
+    # This works better when compute nodes don't have internet access
+    if os.environ.get("HF_HUB_OFFLINE") == "1" or os.environ.get("TRANSFORMERS_OFFLINE") == "1":
+        cache_dir = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+        hub_cache = os.path.join(cache_dir, "hub")
+        
+        # Try to find the model in the cache
+        model_name_safe = ckpt.replace("/", "--")
+        model_cache_path = os.path.join(hub_cache, f"models--{model_name_safe}")
+        
+        if os.path.exists(model_cache_path):
+            # Find the latest snapshot
+            snapshots_dir = os.path.join(model_cache_path, "snapshots")
+            if os.path.exists(snapshots_dir):
+                snapshots = [d for d in os.listdir(snapshots_dir) if os.path.isdir(os.path.join(snapshots_dir, d))]
+                if snapshots:
+                    # Use the first snapshot (usually there's only one)
+                    snapshot_path = os.path.join(snapshots_dir, snapshots[0])
+                    if os.path.exists(os.path.join(snapshot_path, "config.json")):
+                        print(f"Using cached model from: {snapshot_path}")
+                        ckpt = snapshot_path  # Use direct path instead of hub ID
+    
+    # Set cache directory explicitly for offline mode
+    cache_dir = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+    hub_cache = os.path.join(cache_dir, "hub")
+    
     processor = AutoProcessor.from_pretrained(
         ckpt,
         trust_remote_code=True,
         torch_dtype="bfloat16",
         device_map="auto",
         padding_side="left",
+        local_files_only=True,  # Use only cached files (compute nodes have no internet)
+        cache_dir=hub_cache,  # Explicitly set cache directory
     )
 
     model = AutoModelForImageTextToText.from_pretrained(
@@ -399,10 +458,12 @@ def main():
         trust_remote_code=True,
         torch_dtype="bfloat16",
         device_map="auto",
+        local_files_only=True,  # Use only cached files (compute nodes have no internet)
+        cache_dir=hub_cache,  # Explicitly set cache directory
     )
 
     model_family = ckpt.replace("/", "-")
-    num_trials_per_task = 50
+    num_trials_per_task = 5  # Changed from 50 to 5 for faster testing
     num_steps_wait = 10  
     
     if args.task_id is not None:
@@ -417,6 +478,12 @@ def main():
             print(f"{'='*50}")
             args.task_id = task_id
             eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait)
+    
+    # Close the log file when done (only if we opened it)
+    if should_close_log and log_f is not None:
+        log_f.close()
 
 if __name__ == "__main__":
     main()
+
+

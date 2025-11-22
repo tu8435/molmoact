@@ -1,0 +1,113 @@
+2025-11-21 15:36:07.600969: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2025-11-21 15:36:07.656320: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2025-11-21 15:36:10.132021: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a226a90>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 9bb1c3f1-6ef5-4c42-a23b-b93fd068f42c)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Retrying in 1s [Retry 1/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a224810>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 2b516639-ff13-4c56-821b-fe4855e4226c)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Retrying in 2s [Retry 2/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a225010>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 87737853-c68a-48e1-b229-6383e6b711fd)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Retrying in 4s [Retry 3/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a227a90>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: aea30b04-6d40-4ed6-ad3d-4c9ff147ab9e)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Retrying in 8s [Retry 4/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a1f60d0>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: fde40872-265d-4d20-acf7-abee2881727e)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Retrying in 8s [Retry 5/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150b3a1f6a50>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 1914d8d2-d90a-492a-8468-d638674cc2e2)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/processor_config.json
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+Logging output to: stdout/stderr (shell redirected)
+================================================================================
+Loading checkpoint shards:   0%|          | 0/7 [00:00<?, ?it/s]Loading checkpoint shards:  14%|█▍        | 1/7 [00:04<00:27,  4.65s/it]Loading checkpoint shards:  29%|██▊       | 2/7 [00:09<00:22,  4.50s/it]Loading checkpoint shards:  43%|████▎     | 3/7 [00:13<00:17,  4.41s/it]Loading checkpoint shards:  57%|█████▋    | 4/7 [00:15<00:10,  3.38s/it]Loading checkpoint shards:  71%|███████▏  | 5/7 [00:16<00:05,  2.81s/it]Loading checkpoint shards:  86%|████████▌ | 6/7 [00:21<00:03,  3.43s/it]Loading checkpoint shards: 100%|██████████| 7/7 [00:25<00:00,  3.46s/it]Loading checkpoint shards: 100%|██████████| 7/7 [00:25<00:00,  3.58s/it]
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf30550>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 79de3830-5085-4175-a6b2-c0f063bbadff)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf30550>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 79de3830-5085-4175-a6b2-c0f063bbadff)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Retrying in 1s [Retry 1/5].
+WARNING:huggingface_hub.utils._http:Retrying in 1s [Retry 1/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf52010>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 689fde1d-e07f-4dbd-a321-c3435d8ccbae)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf52010>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 689fde1d-e07f-4dbd-a321-c3435d8ccbae)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Retrying in 2s [Retry 2/5].
+WARNING:huggingface_hub.utils._http:Retrying in 2s [Retry 2/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf41f10>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 6c33291f-cd67-4964-9a7d-f3847a3d5397)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf41f10>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 6c33291f-cd67-4964-9a7d-f3847a3d5397)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Retrying in 4s [Retry 3/5].
+WARNING:huggingface_hub.utils._http:Retrying in 4s [Retry 3/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf4d950>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 53734d8f-b744-4258-b9c7-0533c875e697)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf4d950>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 53734d8f-b744-4258-b9c7-0533c875e697)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Retrying in 8s [Retry 4/5].
+WARNING:huggingface_hub.utils._http:Retrying in 8s [Retry 4/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf67f90>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 24e9fda1-6f7b-4e0b-a116-82b28b76123b)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf67f90>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 24e9fda1-6f7b-4e0b-a116-82b28b76123b)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Retrying in 8s [Retry 5/5].
+WARNING:huggingface_hub.utils._http:Retrying in 8s [Retry 5/5].
+'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf89fd0>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 2960096d-b5bc-4d0e-b39a-342b458f474c)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+WARNING:huggingface_hub.utils._http:'(MaxRetryError('HTTPSConnectionPool(host=\'huggingface.co\', port=443): Max retries exceeded with url: /allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py (Caused by NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x150aadf89fd0>: Failed to resolve \'huggingface.co\' ([Errno -2] Name or service not known)"))'), '(Request ID: 2960096d-b5bc-4d0e-b39a-342b458f474c)')' thrown while requesting HEAD https://huggingface.co/allenai/MolmoAct-7B-D-LIBERO-Spatial-0812/resolve/main/custom_generate/generate.py
+Running single task ID: 1
+[info] using task orders [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+Task suite: libero_spatial
+  0%|          | 0/1 [00:00<?, ?it/s]  0%|          | 0/1 [00:02<?, ?it/s]
+[Warning]: datasets path /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/../datasets does not exist!
+[Warning]: datasets path /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/../datasets does not exist!
+Traceback (most recent call last):
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/tersoo_run_libero_eval.py", line 487, in <module>
+    main()
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/tersoo_run_libero_eval.py", line 471, in main
+    eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait)
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/tersoo_run_libero_eval.py", line 240, in eval_libero
+    env, task_description = get_libero_env(task, model_family, resolution=256)
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/libero_utils.py", line 28, in get_libero_env
+    env = OffScreenRenderEnv(**env_args)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/envs/env_wrapper.py", line 161, in __init__
+    super().__init__(**kwargs)
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/envs/env_wrapper.py", line 56, in __init__
+    self.env = TASK_MAPPING[self.problem_name](
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/envs/problems/libero_tabletop_manipulation.py", line 40, in __init__
+    super().__init__(bddl_file_name, *args, **kwargs)
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/envs/bddl_base_domain.py", line 135, in __init__
+    super().__init__(
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/environments/manipulation/manipulation_env.py", line 162, in __init__
+    super().__init__(
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/environments/robot_env.py", line 214, in __init__
+    super().__init__(
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/environments/base.py", line 143, in __init__
+    self._reset_internal()
+  File "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO/libero/libero/envs/bddl_base_domain.py", line 735, in _reset_internal
+    super()._reset_internal()
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/environments/robot_env.py", line 510, in _reset_internal
+    super()._reset_internal()
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/environments/base.py", line 296, in _reset_internal
+    render_context = MjRenderContextOffscreen(self.sim, device_id=self.render_gpu_device_id)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/utils/binding_utils.py", line 210, in __init__
+    super().__init__(sim, offscreen=True, device_id=device_id, max_width=max_width, max_height=max_height)
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/utils/binding_utils.py", line 78, in __init__
+    self.gl_ctx = GLContext(max_width=max_width, max_height=max_height, device_id=self.device_id)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/renderers/context/egl_context.py", line 121, in __init__
+    EGL_DISPLAY = create_initialized_egl_device_display(device_id=device_id)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/renderers/context/egl_context.py", line 52, in create_initialized_egl_device_display
+    device_inds = [int(x) for x in selected_device.split(",")]
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/renderers/context/egl_context.py", line 52, in <listcomp>
+    device_inds = [int(x) for x in selected_device.split(",")]
+                   ^^^^^^
+ValueError: invalid literal for int() with base 10: 'MIG-3b2b0233-a039-5917-961e-aa6d6a534302'
+Exception ignored in: <function EGLGLContext.__del__ at 0x150ad69c1c60>
+Traceback (most recent call last):
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/renderers/context/egl_context.py", line 155, in __del__
+    self.free()
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/renderers/context/egl_context.py", line 146, in free
+    if self._context:
+       ^^^^^^^^^^^^^
+AttributeError: 'EGLGLContext' object has no attribute '_context'
+Exception ignored in: <function MjRenderContext.__del__ at 0x150ad69c1da0>
+Traceback (most recent call last):
+  File "/scratch/gpfs/TSILVER/tu8435/miniconda3/envs/molmoact/lib/python3.11/site-packages/robosuite/utils/binding_utils.py", line 198, in __del__
+    self.con.free()
+    ^^^^^^^^
+AttributeError: 'MjRenderContextOffscreen' object has no attribute 'con'
