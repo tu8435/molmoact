@@ -4,6 +4,9 @@
 
 export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True
 export DISPLAY=""
+# Set CUDA_VISIBLE_DEVICES to match MUJOCO_EGL_DEVICE_ID to avoid robosuite assertion error
+# This must be set before robosuite is imported
+export CUDA_VISIBLE_DEVICES=0
 export MUJOCO_EGL_DEVICE_ID=0  # Critical! Prevents MIG UUID parsing errors
 export HF_HOME=/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/data/huggingface
 export HUGGINGFACE_HUB_CACHE=$HF_HOME/hub
@@ -34,4 +37,4 @@ echo "  MUJOCO_EGL_DEVICE_ID=$MUJOCO_EGL_DEVICE_ID"
 echo ""
 
 cd /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero
-python tersoo_run_libero_eval_scratch.py --task spatial --task_id 1 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812
+python tersoo_run_libero_eval_scratch.py --task spatial --task_id 1 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --noise_level 15

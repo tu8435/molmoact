@@ -50,6 +50,32 @@ def center_crop_image(img: Image.Image) -> Image.Image:
     # fixed 0.9 area scale
     return crop_and_resize_pil(img, 0.9)
 
+def perturb_trace_gaussian(trace, noise_std=10.0, anchor_first=True, anchor_last=False, smooth=True):
+    """
+    trace: list-like [[x0, y0], [x1, y1], ...] in 0–255 coords
+    noise_std: std of Gaussian noise in (0–255) units
+    anchor_first: if True, keep the first waypoint fixed
+    smooth: if True, make noise temporally correlated via a random walk
+    """
+    pts = np.array(trace[0], dtype=float)  # trace is [ [ [x,y], ... ] ]
+    noise = np.random.normal(0.0, noise_std, size=pts.shape)
+
+    if smooth:
+        # Make noise temporally correlated via a random walk
+        # Pertubations in practice should be smoot and not jittery
+        noise = np.cumsum(noise, axis=0)  # correlate along trajectory
+
+    if anchor_first: # in broadcast we trust 
+        noise[0] = 0.0
+    
+    if anchor_last:
+        noise[-1] = 0.0
+
+    perturbed = np.clip(pts + noise, 0, 255)
+    perturbed = perturbed.astype(int)
+
+    return [perturbed.tolist()]  # keep same nesting structure
+
 
 def normalize_gripper_action(action, binarize=True):
     """
@@ -109,7 +135,7 @@ def scale_pt(self, pt, w, h):
             int(round(y / 255.0 * (h - 1))))
     
 
-def step(img, wrist_img, language_instruction, model, processor, unnorm_key):
+def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None):
     """
     Run the multimodal model to get a text, parse out the 8×7 action matrix,
     unnormalize, then temporally aggregate the first 6 DOFs (dims 0–5) while using
@@ -178,6 +204,11 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key):
     trace = model.parse_trace(generated_text)
     print(f"generated visual reasoning trace: {trace}")
 
+    # perturb visual trace if noise_level is provided
+    if noise_level is not None and noise_level > 0:
+        print("\nPerturbing visual trace...")
+        trace = perturb_trace_gaussian(trace, noise_std=noise_level)
+        print(f"post_perturbed_trace: {trace}")
 
     action = model.parse_action(generated_text, unnorm_key=unnorm_key)
     print(f"generated action: {action}")
@@ -213,7 +244,7 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key):
 
 
 # @draccus.wrap()
-def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait) -> None:
+def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait, noise_level) -> None:
 
     set_seed_everywhere(seed)
 
@@ -298,7 +329,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 wait = False
                 traj = None  # Initialize traj to None in case step() fails
                 try:
-                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key)
+                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level)
                 except Exception as e:
                     import traceback
                     print(f"Error in step(): {e}")
@@ -387,6 +418,12 @@ def parse_args():
     p.add_argument("--task_id",  type=int, required=False, default=None, 
                    help="Specific task ID (0-9). If not provided, will run all task IDs 0-9 for the specified task type.")
     p.add_argument("--checkpoint", type=str, required=True)
+    p.add_argument(
+        "--noise_level",
+        type=float,
+        default=15.0,
+        help="Std (in 0–255 coordinate space) of Gaussian noise to add to visual traces."
+    )
     return p.parse_args()
 
 def main():
@@ -473,7 +510,7 @@ def main():
     
     if args.task_id is not None:
         print(f"Running single task ID: {args.task_id}")
-        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait)
+        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level)
     else:
         # Run all task IDs 0-9 for the specified task type
         print(f"Running all task IDs 0-9 for task type: {args.task}")
@@ -482,7 +519,7 @@ def main():
             print(f"Running task ID: {task_id}")
             print(f"{'='*50}")
             args.task_id = task_id
-            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait)
+            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level)
 
 if __name__ == "__main__":
     main()

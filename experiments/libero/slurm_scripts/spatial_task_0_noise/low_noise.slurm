@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=libero_eval       # create a short name for your job
+#SBATCH --job-name=nov24_low_noise_spatial_task_0       # create a short name for your job
 #SBATCH --nodes=1                    # node count
 #SBATCH --ntasks=1                   # total number of tasks across all nodes
 #SBATCH --cpus-per-task=8            # cpu-cores per task (increased for data loading)
@@ -9,8 +9,8 @@
 #SBATCH --time=06:00:00              # total run time limit (HH:MM:SS) - 6 hours should be enough
 #SBATCH --mail-type=begin,end,fail   # receive email notifications
 #SBATCH --mail-user=tu8435@princeton.edu  # replace with your email
-#SBATCH --output=nov_%j.out        # output file name (%j is the job ID)
-#SBATCH --error=nov_%j.err         # error file name (%j is the job ID)
+#SBATCH --output=nov24_low_noise_spatial_task_0_%j.out        # output file name (%j is the job ID)
+#SBATCH --error=nov24_low_noise_spatial_task_0_%j.err         # error file name (%j is the job ID)
 
 # Change to the script directory
 cd /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero
@@ -68,5 +68,7 @@ export PYTHONUNBUFFERED=1
 # Run the evaluation script
 # Output will be redirected by the script itself to out.txt if running interactively,
 # or captured by SLURM's --output and --error flags
-python tersoo_run_libero_eval_long.py --task spatial --task_id 0 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812
+python tersoo_run_libero_eval_long.py --task spatial --task_id 0 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --noise_level 15
+python tersoo_run_libero_eval_long.py --task spatial --task_id 0 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --noise_level 63
+
 
