@@ -128,7 +128,15 @@ def save_rollout_video(rollout_images, idx, success, task_description, checkpoin
     if kwargs:
         for key, value in sorted(kwargs.items()):
             # Format value for directory name
-            if isinstance(value, float):
+            if isinstance(value, bool):
+                # Format booleans more cleanly (e.g., include_trace -> "with_trace" or "no_trace")
+                if key == "include_trace":
+                    # Use cleaner name without the key prefix for include_trace
+                    kwargs_parts.append("with_trace" if value else "no_trace")
+                    continue
+                else:
+                    value_str = "yes" if value else "no"
+            elif isinstance(value, float):
                 value_str = f"{value:.1f}".rstrip('0').rstrip('.')
             else:
                 value_str = str(value)
