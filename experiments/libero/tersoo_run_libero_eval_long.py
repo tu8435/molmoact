@@ -125,7 +125,7 @@ def apply_chat_template(processor: AutoProcessor, text: str):
     )
     return prompt
 
-def scale_pt(self, pt, w, h):
+def scale_pt(pt, w, h):
     """
     Convert a point whose coordinates are in 0–255 space
     to image-pixel space (0‥w-1, 0‥h-1).
@@ -135,7 +135,7 @@ def scale_pt(self, pt, w, h):
             int(round(y / 255.0 * (h - 1))))
     
 
-def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None):
+def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None, include_trace=True):
     """
     Run the multimodal model to get a text, parse out the 8×7 action matrix,
     unnormalize, then temporally aggregate the first 6 DOFs (dims 0–5) while using
@@ -149,18 +149,30 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     wrist = center_crop_image(wrist)
     imgs = [image, wrist]
 
-
-    prompt = (
-        f"The task is {language_instruction}. "
-        "What is the action that the robot should take. "
-        f"To figure out the action that the robot should take to {language_instruction}, "
-        "let's think through it step by step. "
-        "First, what is the depth map for the first image? "
-        "Second, what is the trajectory of the end effector in the first image? "
-        "Based on the depth map of the first image and the trajectory of the end effector in the first image, "
-        "along with other images from different camera views as additional information, "
-        "what is the action that the robot should take?"
-    )
+    # Build prompt conditionally based on include_trace flag
+    if include_trace:
+        prompt = (
+            f"The task is {language_instruction}. "
+            "What is the action that the robot should take. "
+            f"To figure out the action that the robot should take to {language_instruction}, "
+            "let's think through it step by step. "
+            "First, what is the depth map for the first image? "
+            "Second, what is the trajectory of the end effector in the first image? "
+            "Based on the depth map of the first image and the trajectory of the end effector in the first image, "
+            "along with other images from different camera views as additional information, "
+            "what is the action that the robot should take?"
+        )
+    else:
+        prompt = (
+            f"The task is {language_instruction}. "
+            "What is the action that the robot should take. "
+            f"To figure out the action that the robot should take to {language_instruction}, "
+            "let's think through it step by step. "
+            "First, what is the depth map for the first image? "
+            "Based on the depth map of the first image, "
+            "along with other images from different camera views as additional information, "
+            "what is the action that the robot should take?"
+        )
     
         
     text = processor.apply_chat_template(
@@ -197,18 +209,20 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     # print the generated text
     print(f"generated text: {generated_text}")
 
-
     depth = model.parse_depth(generated_text)
     print(f"generated depth perception tokens: {depth}")
     
-    trace = model.parse_trace(generated_text)
-    print(f"generated visual reasoning trace: {trace}")
+    # Only parse and use trace if include_trace is True
+    trace = None
+    if include_trace:
+        trace = model.parse_trace(generated_text)
+        print(f"generated visual reasoning trace: {trace}")
 
-    # perturb visual trace if noise_level is provided
-    if noise_level is not None and noise_level > 0:
-        print("\nPerturbing visual trace...")
-        trace = perturb_trace_gaussian(trace, noise_std=noise_level)
-        print(f"post_perturbed_trace: {trace}")
+        # perturb visual trace if noise_level is provided
+        if noise_level is not None and noise_level > 0:
+            print("\nPerturbing visual trace...")
+            trace = perturb_trace_gaussian(trace, noise_std=noise_level)
+            print(f"post_perturbed_trace: {trace}")
 
     action = model.parse_action(generated_text, unnorm_key=unnorm_key)
     print(f"generated action: {action}")
@@ -244,7 +258,7 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
 
 
 # @draccus.wrap()
-def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait, noise_level) -> None:
+def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait, noise_level, include_trace=False) -> None:
 
     set_seed_everywhere(seed)
 
@@ -329,7 +343,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 wait = False
                 traj = None  # Initialize traj to None in case step() fails
                 try:
-                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level)
+                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level, include_trace=include_trace)
                 except Exception as e:
                     import traceback
                     print(f"Error in step(): {e}")
@@ -361,10 +375,29 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                     try:
                         visualize_annotated = np.array(visualize.copy())
                         if traj is not None and len(traj) > 0:
-                            for i in range(len(traj) - 1):
-                                p1 = tuple(map(int, traj[i]))
-                                p2 = tuple(map(int, traj[i + 1]))
-                                cv2.line(visualize_annotated, p1, p2, (0, 255, 255), 2, cv2.LINE_AA)
+                            # Extract the actual trajectory from nested format [[[x0, y0], [x1, y1], ...]]
+                            if isinstance(traj, str):
+                                trajectory_raw = ast.literal_eval(traj)
+                            elif isinstance(traj, list):
+                                trajectory_raw = traj
+                            else:
+                                trajectory_raw = None
+                            
+                            if trajectory_raw is not None and len(trajectory_raw) > 0:
+                                # Extract inner list: trajectory_raw = [[[x0, y0], [x1, y1], ...]]
+                                trajectory = trajectory_raw[0] if isinstance(trajectory_raw[0], list) else trajectory_raw
+                                new_h, new_w = visualize_annotated.shape[:2]
+                                
+                                # Draw lines connecting each consecutive pair of points
+                                for i in range(len(trajectory) - 1):
+                                    pt1 = tuple(map(int, trajectory[i]))
+                                    pt2 = tuple(map(int, trajectory[i + 1]))
+                                    
+                                    # Scale from 0-255 space to image pixel space
+                                    pt1 = scale_pt(pt1, new_w, new_h)
+                                    pt2 = scale_pt(pt2, new_w, new_h)
+                                    
+                                    cv2.line(visualize_annotated, pt1, pt2, (0, 255, 255), 2, cv2.LINE_AA)
                     except Exception as e:
                         print(f"step() trajectory annotation failed, returning unannotated image: {e}")
                         visualize_annotated = np.array(visualize)
@@ -398,7 +431,8 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
 
             # Save a replay video of the episode
             save_rollout_video(
-                replay_images, total_episodes, success=done, task_description=task_description, checkpoint=checkpoint, task=task_suite_name
+                replay_images, total_episodes, success=done, task_description=task_description, checkpoint=checkpoint, task=task_suite_name,
+                task_id=task_id, noise_level=noise_level, include_trace=include_trace
             )
 
             print(f"Success: {done}")
@@ -423,6 +457,12 @@ def parse_args():
         type=float,
         default=15.0,
         help="Std (in 0–255 coordinate space) of Gaussian noise to add to visual traces."
+    )
+    p.add_argument(
+        "--include_trace",
+        action="store_true",
+        default=False,
+        help="If set, include visual trace generation in the prompt. If False (default), actions are generated without trace reasoning."
     )
     return p.parse_args()
 
@@ -510,7 +550,7 @@ def main():
     
     if args.task_id is not None:
         print(f"Running single task ID: {args.task_id}")
-        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level)
+        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace)
     else:
         # Run all task IDs 0-9 for the specified task type
         print(f"Running all task IDs 0-9 for task type: {args.task}")
@@ -519,7 +559,7 @@ def main():
             print(f"Running task ID: {task_id}")
             print(f"{'='*50}")
             args.task_id = task_id
-            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level)
+            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace)
 
 if __name__ == "__main__":
     main()

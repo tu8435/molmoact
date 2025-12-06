@@ -73,13 +73,81 @@ def get_libero_wrist_image(obs, resize_size):
     return img
 
 
-def save_rollout_video(rollout_images, idx, success, task_description, checkpoint, task):
-    """Saves an MP4 replay of an episode."""
-    # rollout_dir = f"./rollouts/{DATE}"
-    rollout_dir = f"./rollouts/{DATE}/{task}/{checkpoint}"
+def save_rollout_video(rollout_images, idx, success, task_description, checkpoint, task, task_id=None, base_dir=None, **kwargs):
+    """
+    Saves an MP4 replay of an episode.
+    
+    Directory structure:
+    {base_dir}/{DATE}/{model_name}/{task_type}/{task_id}/{kwargs_dir}/{filename}.mp4
+    
+    Args:
+        rollout_images: List of images to save as video
+        idx: Episode index
+        success: Whether episode was successful
+        task_description: Description of the task
+        checkpoint: Model checkpoint path (used to extract model name)
+        task: Task suite name (e.g., "libero_spatial")
+        task_id: Task ID (0-9)
+        base_dir: Base directory for rollouts (default: experiments/libero/rollouts relative to script location)
+        **kwargs: Additional parameters to include in path (e.g., noise_level=15.0)
+    """
+    # Set base directory - use absolute path
+    if base_dir is None:
+        # Get the directory where this script is located (libero_utils.py is in experiments/libero/)
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.join(script_dir, "rollouts")
+    
+    # Extract model name from checkpoint path
+    # Checkpoint can be either a hub path like "allenai/MolmoAct-7B-D-LIBERO-Spatial-0812"
+    # or a full path like "/path/to/models--allenai--MolmoAct-7B-D-LIBERO-Spatial-0812/snapshots/..."
+    if "/" in checkpoint or "\\" in checkpoint:
+        # Extract model name from path
+        # Look for "models--" pattern in path
+        if "models--" in checkpoint:
+            # Extract everything after "models--" until the next "/"
+            model_part = checkpoint.split("models--")[-1].split("/")[0].split("\\")[0]
+            model_name = f"models--{model_part}"
+        else:
+            # Try to extract from hub-style path
+            parts = checkpoint.replace("\\", "/").split("/")
+            if len(parts) >= 2:
+                # Assume format like "allenai/MolmoAct-7B-D-LIBERO-Spatial-0812"
+                model_name = f"models--{parts[-2]}--{parts[-1]}"
+            else:
+                # Fallback: use checkpoint name directly
+                model_name = checkpoint.replace("/", "--").replace("\\", "--")
+    else:
+        # Simple checkpoint name, convert to model format
+        model_name = f"models--{checkpoint.replace('/', '--')}"
+    
+    # Extract task type from task suite name (remove "libero_" prefix)
+    task_type = task.replace("libero_", "") if task.startswith("libero_") else task
+    
+    # Build kwargs directory name
+    kwargs_parts = []
+    if kwargs:
+        for key, value in sorted(kwargs.items()):
+            # Format value for directory name
+            if isinstance(value, float):
+                value_str = f"{value:.1f}".rstrip('0').rstrip('.')
+            else:
+                value_str = str(value)
+            kwargs_parts.append(f"{key}_{value_str}")
+    
+    kwargs_dir = "_".join(kwargs_parts) if kwargs_parts else "default"
+    
+    # Build directory path: base_dir/DATE/model_name/task_type/task_id/kwargs_dir
+    if task_id is not None:
+        rollout_dir = os.path.join(base_dir, DATE, model_name, task_type, str(task_id), kwargs_dir)
+    else:
+        rollout_dir = os.path.join(base_dir, DATE, model_name, task_type, kwargs_dir)
+    
     os.makedirs(rollout_dir, exist_ok=True)
+    
+    # Create filename
     processed_task_description = task_description.lower().replace(" ", "_").replace("\n", "_").replace(".", "_")[:50]
-    mp4_path = f"{rollout_dir}/{DATE_TIME}--episode={idx}--success={success}--task={processed_task_description}.mp4"
+    mp4_path = os.path.join(rollout_dir, f"{DATE_TIME}--episode={idx}--success={success}--task={processed_task_description}.mp4")
+    
     video_writer = imageio.get_writer(mp4_path, fps=30)
     for img in rollout_images:
         video_writer.append_data(img)
