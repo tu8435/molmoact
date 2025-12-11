@@ -6,6 +6,12 @@ import os
 import imageio
 import numpy as np
 import tensorflow as tf
+import sys
+sys.path.insert(0, "/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/LIBERO")
+# Add parent directory to path to import from olmo
+sys.path.insert(1, os.path.join(os.path.dirname(__file__), '../..'))
+
+
 from libero.libero import get_libero_path
 from libero.libero.envs import OffScreenRenderEnv
 
@@ -15,10 +21,14 @@ from robot_utils import (
 )
 
 
+
+
 def get_libero_env(task, model_family, resolution=256):
     """Initializes and returns the LIBERO environment, along with the task description."""
     task_description = task.language
     task_bddl_file = os.path.join(get_libero_path("bddl_files"), task.problem_folder, task.bddl_file)
+    
+    print("TASK BDDL FILE:", task_bddl_file)
     env_args = {
         "bddl_file_name": task_bddl_file, 
         "camera_heights": resolution, 
@@ -73,7 +83,7 @@ def get_libero_wrist_image(obs, resize_size):
     return img
 
 
-def save_rollout_video(rollout_images, idx, success, task_description, checkpoint, task, task_id=None, base_dir=None, **kwargs):
+def save_rollout_video(rollout_images, idx, success, task_description, checkpoint, task, task_id=None, base_dir=None, task_description_override=None,pixel_coords=None, **kwargs):
     """
     Saves an MP4 replay of an episode.
     
@@ -143,6 +153,10 @@ def save_rollout_video(rollout_images, idx, success, task_description, checkpoin
             kwargs_parts.append(f"{key}_{value_str}")
     
     kwargs_dir = "_".join(kwargs_parts) if kwargs_parts else "default"
+    if task_description_override is not None:
+        kwargs_dir += "_customdesc"
+    if pixel_coords is not None:
+        kwargs_dir += "_pixelcoords"
     
     # Build directory path: base_dir/DATE/model_name/task_type/task_id/kwargs_dir
     if task_id is not None:

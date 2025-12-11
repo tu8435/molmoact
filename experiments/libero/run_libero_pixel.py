@@ -151,9 +151,90 @@ def scale_pt(pt, w, h):
     x, y = pt
     return (int(round(x / 255.0 * (w - 1))),
             int(round(y / 255.0 * (h - 1))))
+
+# helper function
+def get_focus_object_from_pixel_coords(pixel_coords, image, model, processor): 
+    prompt = (
+        f"Identify the object located at pixel coordinates (X,Y) = {pixel_coords} in the provided image. "
+        "Return only the object description, and describe the object in a few words."
+    )
+    
+    # Detect model type: check if it's AutoModelForCausalLM (Molmo) or AutoModelForImageTextToText (MolmoAct)
+    from transformers import AutoModelForCausalLM
+    # Check multiple ways: isinstance, has generate_from_batch method, or class name contains "CausalLM"
+    model_class_name = type(model).__name__
+    is_molmo = (isinstance(model, AutoModelForCausalLM) or 
+                hasattr(model, 'generate_from_batch') or 
+                'CausalLM' in model_class_name)
+    
+    # Debug: print model type
+    print(f"DEBUG: Model type: {model_class_name}, is_molmo: {is_molmo}")
+    
+    if is_molmo:
+        # Molmo path: uses processor.process() directly with the text prompt (no chat template)
+        from transformers import GenerationConfig
+        inputs = processor.process(
+            images=[image],
+            text=prompt,
+        )
+        # Move inputs to device and make batch of size 1
+        inputs = {k: v.to(model.device).unsqueeze(0) if hasattr(v, 'to') else v for k, v in inputs.items()}
+        
+        # Generate with Molmo API
+        with torch.inference_mode():
+            with torch.autocast("cuda", enabled=True, dtype=torch.bfloat16):
+                output = model.generate_from_batch(
+                    inputs,
+                    GenerationConfig(max_new_tokens=512, stop_strings="<|endoftext|>"),
+                    tokenizer=processor.tokenizer
+                )
+        
+        # Extract generated tokens
+        generated_tokens = output[0, inputs['input_ids'].size(1):]
+        generated_text = processor.tokenizer.decode(generated_tokens, skip_special_tokens=True)
+    else:
+        # MolmoAct path: uses apply_chat_template as before
+        text = processor.apply_chat_template(
+            [
+                {
+                    "role": "user",
+                    "content": [dict(type="text", text=prompt)]
+                }
+            ], 
+            tokenize=False, 
+            add_generation_prompt=True,
+        )
+            
+        inputs = processor(
+            images=[image],
+            text=text,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+        # Generate with MolmoAct API
+        with torch.inference_mode():
+            with torch.autocast("cuda", enabled=True, dtype=torch.bfloat16):
+                generated_ids = model.generate(**inputs, max_new_tokens=512)
+        
+        generated_tokens = generated_ids[:, inputs['input_ids'].size(1):]
+        generated_text = processor.batch_decode(generated_tokens, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+
+    return generated_text
     
 
-def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None, include_trace=True, include_depth=True):
+def step(img, 
+        wrist_img, 
+        language_instruction, 
+        model, processor, 
+        unnorm_key, 
+        noise_level=None, 
+        include_trace=True, 
+        include_depth=True,
+        pixel_coords=None,
+        focus_object=None
+        ):
     """
     Run the multimodal model to get a text, parse out the 8×7 action matrix,
     unnormalize, then temporally aggregate the first 6 DOFs (dims 0–5) while using
@@ -166,8 +247,16 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     image = center_crop_image(image)
     wrist = center_crop_image(wrist)
     imgs = [image, wrist]
+    
+    print(f'base language_instruction: {language_instruction}')
 
     # Build prompt conditionally based on include_trace and include_depth flags
+    if pixel_coords is not None:
+        if not focus_object: # get the focus object
+            focus_object = get_focus_object_from_pixel_coords(pixel_coords, image, model, processor)
+        language_instruction += f" The object of focus is the {focus_object}."
+        print(f'augmented language_instruction with focus object: {language_instruction}') 
+
     if include_trace and include_depth:
         prompt = (
             f"The task is {language_instruction}. "
@@ -231,9 +320,7 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
         return_tensors="pt",
     )
 
-
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
 
     # generate output
     with torch.inference_mode():
@@ -258,13 +345,6 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     if include_trace:
         trace = model.parse_trace(generated_text)
         print(f"generated visual reasoning trace: {trace}")
-
-        # perturb visual trace (if it exists and is not empty) and if noise_level is provided
-        # Temporarily commented out
-        # if trace is not None and noise_level is not None and noise_level > 0:
-        #     print("\nPerturbing visual trace...")
-        #     trace = perturb_trace_gaussian(trace, noise_std=noise_level)
-        #     print(f"post_perturbed_trace: {trace}")
 
     action = model.parse_action(generated_text, unnorm_key=unnorm_key)
     print(f"generated action: {action}")
@@ -295,7 +375,7 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     else:
         annotated = np.array(img.copy())
 
-    return action, annotated, trace
+    return action, annotated, trace, focus_object
 
 
 
@@ -315,6 +395,8 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
     # Get expected image dimensions
     resize_size = get_image_resize_size()
 
+    # get pixel coords
+    pixel_coords = args.pixel_coords
 
     # Start evaluation
     total_episodes, total_successes = 0, 0
@@ -322,20 +404,25 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
         # Get task
         task_id = args.task_id
         task = task_suite.get_task(task_id)
+        print(f"FULL TASK: {task}")
 
         # Get default LIBERO initial states
         initial_states = task_suite.get_task_init_states(task_id)
 
         # Initialize LIBERO environment and task description
-        env, task_description = get_libero_env(task, model_family, resolution=256)
+        env, temp_task_description = get_libero_env(task, model_family, resolution=256)
+        
+        if args.task_description is not None:
+            task_description = args.task_description
+            print(f"Using custom task description: {task_description}")
+        else:
+            task_description = temp_task_description
 
         # Start episodes
         task_episodes, task_successes = 0, 0
         for episode_idx in tqdm.tqdm(range(num_trials_per_task)):
             last_gripper_state = -1
-       
-       
-         
+    
             print(f"\nTask: {task_description}")
 
             # Reset environment
@@ -371,7 +458,8 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
             
             timestep = 0
             outer_done = False
-         
+            focus_object = None
+
             while t < max_steps + num_steps_wait and not outer_done:
                 # 1) Warm-up: ignore its 'done'
                 if t < num_steps_wait:
@@ -384,8 +472,20 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 wrist_img = get_libero_wrist_image(obs, resize_size)
                 wait = False
                 traj = None  # Initialize traj to None in case step() fails
+                
                 try:
-                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level, include_trace=include_trace, include_depth=include_depth)
+                    action_matrix, annotated_image, traj, focus_object = step(img, 
+                                                                wrist_img, 
+                                                                task_description, 
+                                                                model, 
+                                                                processor, 
+                                                                unnorm_key, 
+                                                                noise_level=noise_level, 
+                                                                include_trace=include_trace, 
+                                                                include_depth=include_depth, 
+                                                                pixel_coords=pixel_coords,
+                                                                focus_object = focus_object
+                                                            )
                 except Exception as e:
                     import traceback
                     print(f"Error in step(): {e}")
@@ -474,7 +574,8 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
             # Save a replay video of the episode
             save_rollout_video(
                 replay_images, total_episodes, success=done, task_description=task_description, checkpoint=checkpoint, task=task_suite_name,
-                task_id=task_id, noise_level=noise_level, include_trace=include_trace, include_depth=include_depth, base_dir=base_dir
+                task_id=task_id, noise_level=noise_level, include_trace=include_trace, include_depth=include_depth, base_dir=base_dir,
+                task_description_override=args.task_description, pixel_coords=args.pixel_coords
             )
 
             print(f"Success: {done}")
@@ -517,6 +618,18 @@ def parse_args():
         type=str,
         default=None,
         help="Absolute path to base directory for saving rollout videos. If not provided, defaults to experiments/libero/rollouts relative to script location."
+    )
+    p.add_argument(
+        "--task_description",
+        type=str,
+        default=None,
+        help="Description of the task. If not provided, defaults to None."
+    )
+    p.add_argument(
+        "--pixel_coords",
+        type=str,
+        default=None,
+        help="pixel coords format, e.g., '(X,Y)' "
     )
     return p.parse_args()
 

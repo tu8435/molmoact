@@ -57,6 +57,18 @@ def perturb_trace_gaussian(trace, noise_std=10.0, anchor_first=True, anchor_last
     anchor_first: if True, keep the first waypoint fixed
     smooth: if True, make noise temporally correlated via a random walk
     """
+    # Safety check: return trace as-is if empty or None
+    if trace is None:
+        return trace
+    if not trace or (isinstance(trace, list) and len(trace) == 0):
+        return trace
+    # Check if trace[0] exists before accessing it
+    try:
+        if not trace[0] or (isinstance(trace[0], list) and len(trace[0]) == 0):
+            return trace
+    except (IndexError, TypeError):
+        return trace
+    
     pts = np.array(trace[0], dtype=float)  # trace is [ [ [x,y], ... ] ]
     noise = np.random.normal(0.0, noise_std, size=pts.shape)
 
@@ -135,7 +147,7 @@ def scale_pt(pt, w, h):
             int(round(y / 255.0 * (h - 1))))
     
 
-def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None, include_trace=True):
+def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noise_level=None, include_trace=True, include_depth=True):
     """
     Run the multimodal model to get a text, parse out the 8×7 action matrix,
     unnormalize, then temporally aggregate the first 6 DOFs (dims 0–5) while using
@@ -149,8 +161,8 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     wrist = center_crop_image(wrist)
     imgs = [image, wrist]
 
-    # Build prompt conditionally based on include_trace flag
-    if include_trace:
+    # Build prompt conditionally based on include_trace and include_depth flags
+    if include_trace and include_depth:
         prompt = (
             f"The task is {language_instruction}. "
             "What is the action that the robot should take. "
@@ -160,9 +172,20 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
             "Second, what is the trajectory of the end effector in the first image? "
             "Based on the depth map of the first image and the trajectory of the end effector in the first image, "
             "along with other images from different camera views as additional information, "
-            "what is the action that the robot should take?"
+            "what is the action that the robot should take? In your response, only produce one instance of each: depth map, trajectory, and action."
         )
-    else:
+    elif include_trace and not include_depth:
+        prompt = (
+            f"The task is {language_instruction}. "
+            "What is the action that the robot should take. "
+            f"To figure out the action that the robot should take to {language_instruction}, "
+            "let's think through it step by step. "
+            "What is the trajectory of the end effector in the first image? "
+            "Based on the trajectory of the end effector in the first image, "
+            "along with other images from different camera views as additional information, "
+            "what is the action that the robot should take? In your response, only produce one instance of each: trajectory, and action."
+        )
+    elif not include_trace and include_depth:
         prompt = (
             f"The task is {language_instruction}. "
             "What is the action that the robot should take. "
@@ -171,7 +194,16 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
             "First, what is the depth map for the first image? "
             "Based on the depth map of the first image, "
             "along with other images from different camera views as additional information, "
-            "what is the action that the robot should take?"
+            "what is the action that the robot should take? In your response, only produce one instance of each: depth map, and action."
+        )
+    else:  # not include_trace and not include_depth
+        prompt = (
+            f"The task is {language_instruction}. "
+            "What is the action that the robot should take. "
+            f"To figure out the action that the robot should take to {language_instruction}, "
+            "let's think through it step by step. "
+            "Based on the images from different camera views as additional information, "
+            "what is the action that the robot should take? In your response, only produce one instance of the action."
         )
     
         
@@ -209,9 +241,11 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
     # print the generated text
     print(f"generated text: {generated_text}")
 
-
-    depth = model.parse_depth(generated_text)
-    print(f"generated depth perception tokens: {depth}")
+    # Only parse depth if include_depth is True
+    depth = None
+    if include_depth:
+        depth = model.parse_depth(generated_text)
+        print(f"generated depth perception tokens: {depth}")
     
     # Only parse and use trace if include_trace is True
     trace = None
@@ -219,11 +253,12 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
         trace = model.parse_trace(generated_text)
         print(f"generated visual reasoning trace: {trace}")
 
-        # perturb visual trace if noise_level is provided
-        if noise_level is not None and noise_level > 0:
-            print("\nPerturbing visual trace...")
-            trace = perturb_trace_gaussian(trace, noise_std=noise_level)
-            print(f"post_perturbed_trace: {trace}")
+        # perturb visual trace (if it exists and is not empty) and if noise_level is provided
+        # Temporarily commented out
+        # if trace is not None and noise_level is not None and noise_level > 0:
+        #     print("\nPerturbing visual trace...")
+        #     trace = perturb_trace_gaussian(trace, noise_std=noise_level)
+        #     print(f"post_perturbed_trace: {trace}")
 
     action = model.parse_action(generated_text, unnorm_key=unnorm_key)
     print(f"generated action: {action}")
@@ -259,7 +294,7 @@ def step(img, wrist_img, language_instruction, model, processor, unnorm_key, noi
 
 
 # @draccus.wrap()
-def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait, noise_level, include_trace=False) -> None:
+def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model_family, num_trials_per_task, num_steps_wait, noise_level, include_trace=True, include_depth=True, base_dir=None) -> None:
 
     set_seed_everywhere(seed)
 
@@ -344,7 +379,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
                 wait = False
                 traj = None  # Initialize traj to None in case step() fails
                 try:
-                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level, include_trace=include_trace)
+                    action_matrix, annotated_image, traj = step(img, wrist_img, task_description, model, processor, unnorm_key, noise_level=noise_level, include_trace=include_trace, include_depth=include_depth)
                 except Exception as e:
                     import traceback
                     print(f"Error in step(): {e}")
@@ -433,7 +468,7 @@ def eval_libero(args, processor, model, task_suite_name, checkpoint, seed, model
             # Save a replay video of the episode
             save_rollout_video(
                 replay_images, total_episodes, success=done, task_description=task_description, checkpoint=checkpoint, task=task_suite_name,
-                task_id=task_id, noise_level=noise_level, include_trace=include_trace
+                task_id=task_id, noise_level=noise_level, include_trace=include_trace, include_depth=include_depth, base_dir=base_dir
             )
 
             print(f"Success: {done}")
@@ -456,14 +491,26 @@ def parse_args():
     p.add_argument(
         "--noise_level",
         type=float,
-        default=15.0,
-        help="Std (in 0–255 coordinate space) of Gaussian noise to add to visual traces."
+        default=None,
+        help="Std (in 0–255 coordinate space) of Gaussian noise to add to visual traces. Default is None (no perturbation)."
     )
     p.add_argument(
         "--include_trace",
-        action="store_true",
-        default=False,
-        help="If set, include visual trace generation in the prompt. If False (default), actions are generated without trace reasoning."
+        type=lambda x: (str(x).lower() == 'true'),
+        default=True,
+        help="Include visual trace generation in the prompt. Default is True. Set to False to disable trace generation."
+    )
+    p.add_argument(
+        "--include_depth",
+        type=lambda x: (str(x).lower() == 'true'),
+        default=True,
+        help="Include depth map generation in the prompt. Default is True. Set to False to disable depth map generation."
+    )
+    p.add_argument(
+        "--base_dir",
+        type=str,
+        default=None,
+        help="Absolute path to base directory for saving rollout videos. If not provided, defaults to experiments/libero/rollouts relative to script location."
     )
     return p.parse_args()
 
@@ -551,7 +598,7 @@ def main():
     
     if args.task_id is not None:
         print(f"Running single task ID: {args.task_id}")
-        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace)
+        eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace, args.include_depth, args.base_dir)
     else:
         # Run all task IDs 0-9 for the specified task type
         print(f"Running all task IDs 0-9 for task type: {args.task}")
@@ -560,7 +607,7 @@ def main():
             print(f"Running task ID: {task_id}")
             print(f"{'='*50}")
             args.task_id = task_id
-            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace)
+            eval_libero(args, processor, model, task_suite_name, ckpt, seed, model_family, num_trials_per_task, num_steps_wait, args.noise_level, args.include_trace, args.include_depth, args.base_dir)
 
 if __name__ == "__main__":
     main()

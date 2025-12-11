@@ -85,3 +85,5 @@ Dockerfile_*
 *.log
 *.err
 *.mp4
+
+/experiments/libero/rollouts/*
