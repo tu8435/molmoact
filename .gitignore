@@ -85,5 +85,7 @@ Dockerfile_*
 *.log
 *.err
 *.mp4
+*.png
 
 /experiments/libero/rollouts/*
+/experiments/libero/google-cloud-sdk/*
