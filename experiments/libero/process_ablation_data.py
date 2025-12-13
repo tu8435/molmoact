@@ -16,11 +16,10 @@ from pathlib import Path
 from collections import defaultdict
 
 # Define the three ablation conditions and their directory name patterns
-# Note: Some directories use different naming conventions (include_depth_yes/no instead of with_depth/no_depth)
 ABLATION_CONDITIONS = {
-    'no_depth_with_trace': ['no_depth_with_trace_noise_level_None', 'include_depth_no_with_trace_noise_level_None'],
-    'with_depth_no_trace': ['with_depth_no_trace_noise_level_None', 'include_depth_yes_no_trace_noise_level_None'],
-    'no_depth_no_trace': ['no_depth_no_trace_noise_level_None'],
+    'no_depth_with_trace': 'no_depth_with_trace_noise_level_None',
+    'with_depth_no_trace': 'with_depth_no_trace_noise_level_None',
+    'no_depth_no_trace': 'no_depth_no_trace_noise_level_None',
 }
 
 # Base directories to search
@@ -28,8 +27,6 @@ BASE_DIRS = [
     '/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts/2025_12_07',
     '/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts/2025_12_09',
     '/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts/2025_12_10',
-    '/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts/2025_12_11',
-    '/scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts/2025_12_12',
     '/scratch/gpfs/TSILVER/bb8404/molmoact/experiments/libero/rollouts/2025_12_07',
     '/scratch/gpfs/TSILVER/bb8404/molmoact/experiments/libero/rollouts/2025_12_08',
     '/scratch/gpfs/TSILVER/bb8404/molmoact/experiments/libero/rollouts/2025_12_09',
@@ -49,12 +46,9 @@ def parse_success_from_filename(filename):
 
 def identify_ablation_condition(dir_name):
     """Identify which ablation condition a directory belongs to."""
-    for condition, patterns in ABLATION_CONDITIONS.items():
-        # Handle both single pattern (string) and multiple patterns (list)
-        pattern_list = patterns if isinstance(patterns, list) else [patterns]
-        for pattern in pattern_list:
-            if pattern in dir_name:
-                return condition
+    for condition, pattern in ABLATION_CONDITIONS.items():
+        if pattern in dir_name:
+            return condition
     return None
 
 
@@ -101,16 +95,8 @@ def process_all_directories():
                     if ablation_condition is None:
                         continue
                     
-                    # Process .mp4 files in the directory, but only count first 50 episodes total per task_id/ablation_condition
-                    # Check current count to avoid exceeding 50 across all directories
-                    current_total = results[ablation_condition][task_type][task_id]['total']
-                    if current_total >= 50:
-                        continue  # Already have 50 episodes for this task_id/ablation_condition
-                    
-                    mp4_files = sorted(ablation_dir.glob('*.mp4'))
-                    for file_path in mp4_files:
-                        if current_total >= 50:
-                            break
+                    # Process all .mp4 files in the directory
+                    for file_path in ablation_dir.glob('*.mp4'):
                         filename = file_path.name
                         success = parse_success_from_filename(filename)
                         
@@ -118,7 +104,6 @@ def process_all_directories():
                             results[ablation_condition][task_type][task_id]['total'] += 1
                             if success:
                                 results[ablation_condition][task_type][task_id]['success'] += 1
-                            current_total += 1
     
     return results
 

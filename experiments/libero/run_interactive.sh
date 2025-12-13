@@ -38,4 +38,4 @@ echo ""
 
 cd /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero
 # python tersoo_run_libero_eval_long.py --task spatial --task_id 1 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --base_dir /scratch/gpfs/TSILVER/bb8404/molmoact/experiments/libero/rollouts --include_trace False
-python tersoo_run_libero_eval_long.py --task spatial --task_id 8 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --include_depth True --include_trace False
+python tersoo_run_libero_eval_long.py --task spatial --task_id 1 --checkpoint allenai/MolmoAct-7B-D-LIBERO-Spatial-0812 --base_dir /scratch/gpfs/TSILVER/tu8435/ECE531_final_project/molmoact/experiments/libero/rollouts --include_depth False
