@@ -1,9 +1,0 @@
-Task Type,Depth Tokens,Visual Trace,Success Rate (%),Source
-Object,Yes,Yes,95.4,MolmoAct Paper (Baseline)
-Object,No,Yes,92.6,Experiment
-Object,Yes,No,88.2,Experiment
-Object,No,No,92.4,Experiment
-Spatial,Yes,Yes,87.0,MolmoAct Paper (Baseline)
-Spatial,No,Yes,86.2,Experiment
-Spatial,Yes,No,80.2,Experiment
-Spatial,No,No,83.2,Experiment

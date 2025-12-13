@@ -1,1 +1,0 @@
-Trace: [[128, 105], [127, 148], [125, 190], [95, 173], [65, 155]], Description: Path to pick up the red box and place it in the basket.
