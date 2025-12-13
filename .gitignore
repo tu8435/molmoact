@@ -86,4 +86,6 @@ Dockerfile_*
 *.err
 *.mp4
 
-/experiments/libero/rollouts/*
+*/experiments/libero/rollouts/*
+*/experiments/libero/google-cloud-sdk/*
+*/experiments/libero/google-cloud-cli-linux-x86_64.tar.gz
